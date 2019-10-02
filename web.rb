@@ -393,21 +393,40 @@ module Isucari
           }
         end
 
-        unless item['transaction_evidence_id'].nil?
-          if item['shippings_reserve_id'].nil?
+        # unless item['transaction_evidence_id'].nil?
+        #   if item['shippings_reserve_id'].nil?
+        #     db.query('ROLLBACK')
+        #     halt_with_error 404, 'shipping not found'
+        #   end
+
+        #   ssr = begin
+        #     api_client.shipment_status(get_shipment_service_url, 'reserve_id' => item['shippings_reserve_id'])
+        #   rescue
+        #     db.query('ROLLBACK')
+        #     halt_with_error 500, 'failed to request to shipment service'
+        #   end
+
+        #   item_detail['transaction_evidence_id'] = item['transaction_evidence_id']
+        #   item_detail['transaction_evidence_status'] = item['transaction_evidence_status']
+        #   item_detail['shipping_status'] = ssr['status']
+        # end
+        transaction_evidence = db.xquery('SELECT * FROM `transaction_evidences` WHERE `item_id` = ?', item['id']).first
+        unless transaction_evidence.nil?
+          shipping = db.xquery('SELECT * FROM `shippings` WHERE `transaction_evidence_id` = ?', transaction_evidence['id']).first
+          if shipping.nil?
             db.query('ROLLBACK')
             halt_with_error 404, 'shipping not found'
           end
 
           ssr = begin
-            api_client.shipment_status(get_shipment_service_url, 'reserve_id' => item['shippings_reserve_id'])
+            api_client.shipment_status(get_shipment_service_url, 'reserve_id' => shipping['reserve_id'])
           rescue
             db.query('ROLLBACK')
             halt_with_error 500, 'failed to request to shipment service'
           end
 
-          item_detail['transaction_evidence_id'] = item['transaction_evidence_id']
-          item_detail['transaction_evidence_status'] = item['transaction_evidence_status']
+          item_detail['transaction_evidence_id'] = transaction_evidence['id']
+          item_detail['transaction_evidence_status'] = transaction_evidence['status']
           item_detail['shipping_status'] = ssr['status']
         end
 
